@@ -1,0 +1,10 @@
+fastapi==0.95.0
+uvicorn[standard]==0.22.0
+sqlalchemy==1.4.47
+asyncpg==0.27.0           # драйвер для PostgreSQL (если используете PostgreSQL)
+databases[asyncpg]==0.6.0  # асинхронное взаимодействие с БД через SQLAlchemy core или ORM
+alembic==1.10.4
+python-jose==3.3.0        # для JWT токенов
+passlib[bcrypt]==1.7.4    # для хеширования паролей
+pydantic==1.10.7          # валидация данных (FastAPI включает)
+pytest==7.4.0             # тестирование
