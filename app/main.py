@@ -2,9 +2,11 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from . import models,schemas,auth
-from .config import engine
-from .dependencies import get_db
+import models
+import schemas
+import auth
+from config import engine
+from dependencies import get_db
 
 import datetime
 
@@ -50,21 +52,46 @@ def login(user_in:schema.UserCreate , db:Session=Depends(get_db)):
 
 # --- Защищенные эндпоинты ---
 
-def get_current_user(token:str=Depends(...)): # реализуйте получение токена из заголовка Authorization Bearer
-      # В этом примере пропущено — нужно реализовать dependency для получения токена из заголовка.
-      pass
+def get_token_from_header(authorization: Optional[str] = Header(None)):
+    if authorization is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header missing",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authorization scheme",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return token
+
+def get_current_user(token: str = Depends(get_token_from_header)):
+    try:
+        payload = simple_auth.decode_access_token(token)
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return int(user_id)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 @app.post("/books/", response_model=schema.BookRead)
-def create_book(book_in:schema.BookCreate , db:Session=Depends(get_db), current_user:int=Depends(get_current_user)):
-      book= models.Book(**book_in.dict())
-      db.add(book)
-      db.commit()
-      db.refresh(book)
-      return book
+def create_book(
+    book_in: schema.BookCreate,
+    db: Session = Depends(get_db),
+    current_user: int = Depends(get_current_user)
+):
+    # current_user — это id пользователя
+    book = models.Book(**book_in.dict(), owner_id=current_user)  # если есть поле owner_id
+    db.add(book)
+    db.commit()
+    db.refresh(book)
+    return book
 
 @app.get("/books/", response_model=List[schema.BookRead])
 def read_books(db:Session=Depends(get_db)):
       books=db.query(models.Book).all()
       return books
-
-# Аналогично реализуйте CRUD для читателей и выдачу/возврат книг.

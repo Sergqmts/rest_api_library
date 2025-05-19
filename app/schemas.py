@@ -30,10 +30,15 @@ class BookRead(BookCreate):
 # Читатели 
 class ReaderCreate(BaseModel):
     name: str
-    email: EmailStr
+    email: str
 
-class ReaderRead(ReaderCreate):
+class ReaderRead(BaseModel):
     id: int
+    name: str
+    email: str
+
+    class Config:
+        orm_mode = True
 
 # Выдача книги 
 class BorrowBookRequest(BaseModel):
@@ -53,3 +58,18 @@ class Token(BaseModel):
 # Токен с данными пользователя 
 class TokenData(BaseModel):
     user_id: Optional[int]
+
+
+class LoanCreate(BaseModel):
+    book_id: int
+    reader_id: int
+
+class LoanRead(BaseModel):
+    id: int
+    book_id: int
+    reader_id: int
+    date_borrowed: datetime.datetime
+    date_returned: Optional[datetime.datetime]
+
+    class Config:
+        orm_mode=True
