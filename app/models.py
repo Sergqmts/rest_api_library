@@ -1,28 +1,27 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func, UniqueConstraint, Boolean, Date, nullslast
-from sqlalchemy.orm import relationship, declarative_base
-
-Base = declarative_base()
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy.orm import relationship
+from .config import Base
 
 class User(Base):
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    email = Column(String(255), unique=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
 
 class Book(Base):
     __tablename__ = "books"
     id = Column(Integer, primary_key=True)
-    title = Column(String(255), nullable=False)
-    author = Column(String(255), nullable=False)
-    publication_year = Column(Integer)
-    isbn = Column(String(13), unique=True)
+    title = Column(String, nullable=False)
+    author = Column(String, nullable=False)
+    year_published = Column(Integer)
+    isbn = Column(String, unique=True)
     quantity = Column(Integer, default=1)
 
 class Reader(Base):
     __tablename__ = "readers"
     id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False)
-    email = Column(String(255), unique=True, nullable=False)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
 
 class BorrowedBook(Base):
     __tablename__ = "borrowed_books"

@@ -1,105 +1,70 @@
-from fastapi import FastAPI, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from typing import List
 
-from app.models import Base
-from app.schemas import *
-from app.crud import *
-from app.auth import *
-from app.dependencies import get_db
-from app.config import SECRET_KEY
+from . import models,schemas,auth
+from .config import engine
+from .dependencies import get_db
 
-app = FastAPI()
+import datetime
 
+models.Base.metadata.create_all(bind=engine)
 
-# Создание таблиц при запуске
-@app.on_event("startup")
-async def startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+app= FastAPI()
 
+# --- Регистрация и логин ---
 
-# Регистрация пользователя (библиотекаря)
-@app.post("/register", response_model=UserRead)
-async def register_user(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
-    user = await get_user_by_email(db, user_in.email)
-    if user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+@app.post("/register", response_model=schema.UserRead)
+def register(user_in:schema.UserCreate , db:Session=Depends(get_db)):
+     # Проверка уникальности email
+     existing_user= db.query(models.User).filter(models.User.email==user_in.email).first()
+     if existing_user:
+         raise HTTPException(status_code=400 , detail="Email already registered")
+     
+     from passlib.context import CryptContext
+     pwd_context= CryptContext(schemes=["bcrypt"], deprecated="auto")
+     
+     hashed_password= pwd_context.hash(user_in.password)
+     
+     new_user= models.User(email=user_in.email , hashed_password=hashed_password)
+     db.add(new_user)
+     db.commit()
+     db.refresh(new_user)
+     return new_user
 
-    hashed_password = get_password_hash(user_in.password)
-    new_user = User(email=user_in.email, hashed_password=hashed_password)
+@app.post("/login", response_model=schema.Token)
+def login(user_in:schema.UserCreate , db:Session=Depends(get_db)):
+     user= db.query(models.User).filter(models.User.email==user_in.email).first()
+     if not user:
+         raise HTTPException(status_code=400 , detail="Incorrect email or password")
+     
+     from passlib.context import CryptContext
+     pwd_context= CryptContext(schemes=["bcrypt"], deprecated="auto")
+     
+     if not pwd_context.verify(user_in.password , user.hashed_password):
+         raise HTTPException(status_code=400 , detail="Incorrect email or password")
+     
+     access_token= simple_auth.create_access_token(data={"sub":str(user.id)})
+     
+     return {"access_token": access_token , "token_type": "bearer"}
 
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
+# --- Защищенные эндпоинты ---
 
-    return new_user
+def get_current_user(token:str=Depends(...)): # реализуйте получение токена из заголовка Authorization Bearer
+      # В этом примере пропущено — нужно реализовать dependency для получения токена из заголовка.
+      pass
 
+@app.post("/books/", response_model=schema.BookRead)
+def create_book(book_in:schema.BookCreate , db:Session=Depends(get_db), current_user:int=Depends(get_current_user)):
+      book= models.Book(**book_in.dict())
+      db.add(book)
+      db.commit()
+      db.refresh(book)
+      return book
 
-# Вход (логин) и получение токена
-@app.post("/token")
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    user = await authenticate_user(db, form_data.username, form_data.password)
+@app.get("/books/", response_model=List[schema.BookRead])
+def read_books(db:Session=Depends(get_db)):
+      books=db.query(models.Book).all()
+      return books
 
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
-
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-
-    access_token = create_access_token(data={"sub": str(user.id)}, expires_delta=access_token_expires)
-
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-# Защищенные маршруты — управление книгами
-@app.post("/books/", response_model=BookRead)
-async def create_book(book_in: BookCreate, db: AsyncSession = Depends(get_db),
-                      current_user: int = Depends(get_current_user)):
-    new_book = Book(**book_in.dict())
-    db.add(new_book)
-    await db.commit()
-    await db.refresh(new_book)
-    return new_book
-
-
-# Аналогично реализуйте CRUD для книг (GET /books/, GET /books/{id}, PUT /books/{id}, DELETE /books/{id})
-
-# Управление читателями — аналогично
-
-# Выдача книги
-@app.post("/borrow/")
-async def borrow_book(borrow_in: BorrowRequest, db: AsyncSession = Depends(get_db),
-                      current_user: int = Depends(get_current_user)):
-    book_obj = await get_book_by_id(db, borrow_in.book_id)
-    reader_obj = await get_reader_by_id(db, borrow_in.reader_id)
-
-    if not book_obj or not reader_obj:
-        raise HTTPException(status_code=404, detail="Book or Reader not found")
-
-    available_copies = book_obj.quantity
-    if available_copies <= 0:
-        raise HTTPException(status_code=400, detail="No available copies")
-
-    # Проверка количества книг у читателя
-    borrowed_count_query = select(BorrowedBook).where(
-        BorrowedBook.reader_id == borrow_in.reader_id,
-        BorrowedBook.return_date.is_(None)
-    )
-    result_borrowed_count = await db.execute(borrowed_count_query)
-    borrowed_books_count = len(result_borrowed_count.scalars().all())
-
-    if borrowed_books_count >= 3:
-        raise HTTPException(status_code=400, detail="Reader has already borrowed maximum number of books")
-
-    # Уменьшаем количество экземпляров
-    book_obj.quantity -= 1
-
-    borrowed_record = new
-    BorrowedBook(
-        book_id=borrow_in.book_id,
-        reader_id=borrow_in.reader_id,
-        borrow_date=datetime.utcnow(),
-        return_date=None
-    )
-
-    db.add(borrowed_record
+# Аналогично реализуйте CRUD для читателей и выдачу/возврат книг.
