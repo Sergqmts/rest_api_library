@@ -1,12 +1,12 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-import models
-import schemas
-import auth
-from config import engine
-from dependencies import get_db
+from app import models
+from app import schemas
+from app import auth
+from app.config import engine
+from app.dependencies import get_db
 
 from datetime import datetime
 
@@ -18,6 +18,7 @@ app= FastAPI()
 
 @app.post("/register", response_model=schemas.UserRead)
 def register(user_in:schemas.UserCreate , db:Session=Depends(get_db)):
+     print("Register endpoint called")
      # Проверка уникальности email
      existing_user= db.query(models.User).filter(models.User.email==user_in.email).first()
      if existing_user:
