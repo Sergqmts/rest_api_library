@@ -1,7 +1,7 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from .config import SessionLocal
-from .auth import verify_token
+from config import SessionLocal
+from auth import verify_token
 
 def get_db():
      db= SessionLocal()

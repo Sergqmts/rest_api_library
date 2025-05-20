@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 import models
 import schemas
@@ -8,7 +8,7 @@ import auth
 from config import engine
 from dependencies import get_db
 
-import datetime
+from datetime import datetime
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -16,8 +16,8 @@ app= FastAPI()
 
 # --- Регистрация и логин ---
 
-@app.post("/register", response_model=schema.UserRead)
-def register(user_in:schema.UserCreate , db:Session=Depends(get_db)):
+@app.post("/register", response_model=schemas.UserRead)
+def register(user_in:schemas.UserCreate , db:Session=Depends(get_db)):
      # Проверка уникальности email
      existing_user= db.query(models.User).filter(models.User.email==user_in.email).first()
      if existing_user:
@@ -34,8 +34,8 @@ def register(user_in:schema.UserCreate , db:Session=Depends(get_db)):
      db.refresh(new_user)
      return new_user
 
-@app.post("/login", response_model=schema.Token)
-def login(user_in:schema.UserCreate , db:Session=Depends(get_db)):
+@app.post("/login", response_model=schemas.Token)
+def login(user_in:schemas.UserCreate , db:Session=Depends(get_db)):
      user= db.query(models.User).filter(models.User.email==user_in.email).first()
      if not user:
          raise HTTPException(status_code=400 , detail="Incorrect email or password")
@@ -78,9 +78,9 @@ def get_current_user(token: str = Depends(get_token_from_header)):
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-@app.post("/books/", response_model=schema.BookRead)
+@app.post("/books/", response_model=schemas.BookRead)
 def create_book(
-    book_in: schema.BookCreate,
+    book_in: schemas.BookCreate,
     db: Session = Depends(get_db),
     current_user: int = Depends(get_current_user)
 ):
@@ -91,7 +91,7 @@ def create_book(
     db.refresh(book)
     return book
 
-@app.get("/books/", response_model=List[schema.BookRead])
+@app.get("/books/", response_model=List[schemas.BookRead])
 def read_books(db:Session=Depends(get_db)):
       books=db.query(models.Book).all()
       return books

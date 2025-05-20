@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
+from datetime import datetime
 
 # Пользователи (библиотекари)
 class UserCreate(BaseModel):
@@ -68,8 +69,8 @@ class LoanRead(BaseModel):
     id: int
     book_id: int
     reader_id: int
-    date_borrowed: datetime.datetime
-    date_returned: Optional[datetime.datetime]
-
+    date_borrowed: datetime
+    date_returned: Optional[datetime]
+    
     class Config:
         orm_mode=True
