@@ -40,7 +40,6 @@ uvicorn app.main:app --reload
 Для регистрации первого пользователя отправьте POST-запрос на /register с JSON:
 
 ```json
-Копировать код
 {
   "email": "admin@example.com",
   "password": "your_secure_password"
@@ -58,7 +57,7 @@ uvicorn app.main:app --reload
     - /crud -содержит CRUD-операции для работы с сущностью "Reader"
     - /dependencies - содержит зависимости для FastAPI, необходимые для работы с базой данных и аутентификацией:
 - tests/
-    - /test.py — gредназначен для проверки регистрации и входа пользователя.
+    - /test.py — предназначен для проверки регистрации и входа пользователя.
 - requirements.txt — список зависимостей.
 
 
