@@ -13,6 +13,4 @@ def test_register_and_login():
       token_data=response.json()
       assert "access_token" in token_data
 
-def test_protected_endpoint():
-      # Получить токен и проверить доступ без него и с ним.
-      pass
+
